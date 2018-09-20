@@ -66,17 +66,6 @@ options_metadata parser::load_environment()
     return environment;
 }
 
-void parser::load_command_variables(variables_map& variables,
-    std::istream& input, int argc, const char* argv[])
-{
-    bc::config::parser::load_command_variables(variables, argc, argv);
-
-    // Don't load rest if help is specified.
-    // For variable with stdin or file fallback load the input stream.
-    if (!get_option(variables, BX_HELP_VARIABLE))
-        instance_.load_fallbacks(input, variables);
-}
-
 bool parser::parse(std::string& out_error, std::istream& input,
     int argc, const char* argv[])
 {
@@ -85,19 +74,46 @@ bool parser::parse(std::string& out_error, std::istream& input,
         variables_map variables;
 
         // Must store before environment in order for commands to supercede.
-        load_command_variables(variables, input, argc, argv);
+//        load_command_variables(variables, input, argc, argv);
+// note: this previously called config::parser::load_command_variables
+        options_metadata description("options");
+        description.add_options()
+        (
+         "version,v",
+         value<bool>(&version_)->
+         default_value(false)->zero_tokens(),
+         "Display version information."
+         );
+
+        const auto arguments = load_arguments();
+        
+        // command_line_parser documentation:
+        // https://www.boost.org/doc/libs/1_68_0/doc/html/program_options/tutorial.html
+        auto command_parser = command_line_parser(argc, argv).options(description)
+        /*.allow_unregistered()*/.positional(arguments);
+        
+        // Boost.ProgramOptions explained:
+        // https://theboostcpplibraries.com/boost.program_options
+        boost::program_options::store(command_parser.run(), variables);
+        
+        notify(variables);
+        
+        // Don't load rest if help is specified.
+        // For variable with stdin or file fallback load the input stream.
+        if (!get_option(variables, BX_HELP_VARIABLE))
+            instance_.load_fallbacks(input, variables);
 
         // Don't load rest if help is specified.
         if (!get_option(variables, BX_HELP_VARIABLE))
         {
             // Must store before configuration in order to specify the path.
             load_environment_variables(variables,
-                BX_ENVIRONMENT_VARIABLE_PREFIX);
+                BX_ENVIRONMENT_VARIABLE_PREFIX, &description);
 
             // Is lowest priority, which will cause confusion if there is
             // composition between them, which therefore should be avoided.
             /* auto file = */ load_configuration_variables(variables,
-                BX_CONFIG_VARIABLE);
+                BX_CONFIG_VARIABLE, &description);
 
             // Set variable defaults, send notifications and update bound vars.
             notify(variables);

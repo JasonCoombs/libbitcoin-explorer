@@ -46,7 +46,7 @@ console_result subscribe_block::invoke(std::ostream& output, std::ostream& error
 
     callback_state state(error, output, encoding);
 
-    auto on_block = [&state](const chain::block& block)
+    auto on_block = [&state]( chain::block& block)
     {
         state.output(property_tree(bc::config::header(block.header())));
     };

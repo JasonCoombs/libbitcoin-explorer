@@ -59,7 +59,7 @@ console_result send_tx_node::invoke(std::ostream& output, std::ostream& error)
     // Bound parameters.
     const auto& host = get_host_option();
     const auto& port = get_port_option();
-    const tx_type& transaction = get_transaction_argument();
+     tx_type& transaction = (bc::chain::transaction&)get_transaction_argument();
 
     // Configuration settings.
     //-------------------------------------------------------------------------
